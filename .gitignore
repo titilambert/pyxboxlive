@@ -1,0 +1,6 @@
+*.swp
+env/
+__pycache__/
+pyxboxlive.egg-info/
+doc/build/
+dist/
