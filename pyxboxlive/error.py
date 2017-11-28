@@ -1,0 +1,2 @@
+class PyXboxLiveError(Exception):
+    pass

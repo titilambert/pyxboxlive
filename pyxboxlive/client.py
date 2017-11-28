@@ -12,13 +12,11 @@ import aiohttp
 
 
 from pyxboxlive.gamerprofile import GamerProfile
+from pyxboxlive.error import PyXboxLiveError
 #from .exceptions import AuthenticationException, InvalidRequest
 
 REQUESTS_TIMEOUT = 15
 
-
-class PyXboxLiveError(Exception):
-    pass
 
 
 class XboxLiveClient(object):
@@ -43,7 +41,7 @@ class XboxLiveClient(object):
                 'Authentication credentials required. Please refer to '
                 'http://xbox.readthedocs.org/en/latest/authentication.html'
             )
-            raise AuthenticationException(msg)
+            raise PyXboxLiveError(msg)
 
         # firstly we have to GET the login page and extract
         # certain data we need to include in our POST request.
@@ -94,7 +92,7 @@ class XboxLiveClient(object):
         if 'Location' not in resp.headers:
             # we can only assume the login failed
             msg = 'Could not log in with supplied credentials'
-            raise AuthenticationException(msg)
+            raise PyXboxLiveError(msg)
 
         # the access token is included in fragment of the location header
         location = resp.headers['Location']
@@ -132,6 +130,10 @@ class XboxLiveClient(object):
         self.user_xid = response['DisplayClaims']['xui'][0]['xid']
         self.authenticated = True
         return self
+
+    def close(self):
+        """Close session"""
+        self._session.close()
 
     def get_data(self):
         """Return collected data"""
@@ -255,9 +257,19 @@ class XboxLiveClient(object):
         return resp
 
 
+    @asyncio.coroutine
+    def send_message(self, xuids, message):
+        '''
+        '''
+        url = "https://msg.xboxlive.com/users/xuid(%s)/outbox" % self.user_xid
 
-
-
+        recipients = [{"xuid": xuid} for xuid in xuids]
+        data = {"header": {"recipients": recipients},
+                "messageText": message,
+               }
+        headers = {'x-xbl-contract-version': '3'}
+        response = yield from self._post_json(url, data, headers=headers)
+        return response
 
 
 
