@@ -29,9 +29,67 @@ class XboxLiveClient(object):
         if loop is None:
             loop = asyncio.get_event_loop()
         self._session = aiohttp.ClientSession(loop=loop)
-        self._data = {}
         self._timeout = timeout
         self.authenticated = False
+
+    def __repr__(self):
+        if self.authenticated:
+            return '<xbox.Client: %s>' % self.username
+        else:
+            return '<xbox.Client: Unauthenticated>'
+
+    def _raise_for_status(self, response):
+        if response.status_code == 400:
+            try:
+                description = response.json()['description']
+            except:
+                description = 'Invalid request'
+            raise InvalidRequest(description, response=response)
+
+    @asyncio.coroutine
+    def _get(self, url, **kw):
+        '''
+        Makes a GET request, setting Authorization
+        header by default
+        '''
+        headers = kw.pop('headers', {})
+        headers.setdefault('Content-Type', 'application/json')
+        headers.setdefault('Accept', 'application/json')
+        headers.setdefault('Authorization', self.AUTHORIZATION_HEADER)
+        kw['headers'] = headers
+        response = yield from self._session.get(url, **kw)
+        self._raise_for_status(response)
+        return response
+
+    @asyncio.coroutine
+    def _post_json(self, url, data, **kw):
+        '''
+        Makes a POST request, setting Authorization
+        and Content-Type headers by default
+        '''
+        data = json.dumps(data)
+        headers = kw.pop('headers', {})
+        headers.setdefault('Content-Type', 'application/json')
+        headers.setdefault('Accept', 'application/json')
+
+        kw['headers'] = headers
+        kw['data'] = data
+        response = yield from self._post(url, **kw)
+        self._raise_for_status(response)
+        return response
+
+    @asyncio.coroutine
+    def _post(self, url, **kw):
+        '''
+        Makes a POST request, setting Authorization
+        header by default
+        '''
+        headers = kw.pop('headers', {})
+        headers.setdefault('Authorization', self.AUTHORIZATION_HEADER)
+        kw['headers'] = headers
+        response = yield from self._session.post(url, **kw)
+        self._raise_for_status(response)
+        return response
 
     @asyncio.coroutine
     def authenticate(self):
@@ -131,35 +189,6 @@ class XboxLiveClient(object):
         self.authenticated = True
         return self
 
-    def close(self):
-        """Close session"""
-        self._session.close()
-
-    def get_data(self):
-        """Return collected data"""
-        return self._data
-
-    def __repr__(self):
-        if self.authenticated:
-            return '<xbox.Client: %s>' % self.username
-        else:
-            return '<xbox.Client: Unauthenticated>'
-
-    @asyncio.coroutine
-    def _get(self, url, **kw):
-        '''
-        Makes a GET request, setting Authorization
-        header by default
-        '''
-        headers = kw.pop('headers', {})
-        headers.setdefault('Content-Type', 'application/json')
-        headers.setdefault('Accept', 'application/json')
-        headers.setdefault('Authorization', self.AUTHORIZATION_HEADER)
-        kw['headers'] = headers
-        resp = yield from self._session.get(url, **kw)
-#        self._raise_for_status(resp)
-        return resp
-
     @asyncio.coroutine
     def get_gamerprofile_from_gamertag(self, gamertag):
         '''
@@ -204,7 +233,6 @@ class XboxLiveClient(object):
 
         :returns: :class:`~xbox.GamerProfile` instance
         '''
-
         url = 'https://profile.xboxlive.com/users/xuid(%s)/profile/settings' % xuid
         settings = [
             'AppDisplayName',
@@ -226,37 +254,6 @@ class XboxLiveClient(object):
         user = raw_json['profileUsers'][0]
         return GamerProfile(self, user['id'], user['settings'], raw_json)
 
-
-    @asyncio.coroutine
-    def _post_json(self, url, data, **kw):
-        '''
-        Makes a POST request, setting Authorization
-        and Content-Type headers by default
-        '''
-        data = json.dumps(data)
-        headers = kw.pop('headers', {})
-        headers.setdefault('Content-Type', 'application/json')
-        headers.setdefault('Accept', 'application/json')
-
-        kw['headers'] = headers
-        kw['data'] = data
-        response = yield from self._post(url, **kw)
-        return response
-
-    @asyncio.coroutine
-    def _post(self, url, **kw):
-        '''
-        Makes a POST request, setting Authorization
-        header by default
-        '''
-        headers = kw.pop('headers', {})
-        headers.setdefault('Authorization', self.AUTHORIZATION_HEADER)
-        kw['headers'] = headers
-        resp = yield from self._session.post(url, **kw)
-#        self._raise_for_status(resp)
-        return resp
-
-
     @asyncio.coroutine
     def send_message(self, xuids, message):
         '''
@@ -270,6 +267,11 @@ class XboxLiveClient(object):
         headers = {'x-xbl-contract-version': '3'}
         response = yield from self._post_json(url, data, headers=headers)
         return response
+
+    def close(self):
+        """Close session"""
+        self._session.close()
+
 
 
 
