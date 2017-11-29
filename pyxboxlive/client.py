@@ -38,10 +38,11 @@ class XboxLiveClient(object):
         else:
             return '<xbox.Client: Unauthenticated>'
 
+    @asyncio.coroutine
     def _raise_for_status(self, response):
-        if response.status_code == 400:
+        if response.status == 400:
             try:
-                description = response.json()['description']
+                description = yield from response.json()['description']
             except:
                 description = 'Invalid request'
             raise InvalidRequest(description, response=response)
@@ -58,7 +59,7 @@ class XboxLiveClient(object):
         headers.setdefault('Authorization', self.AUTHORIZATION_HEADER)
         kw['headers'] = headers
         response = yield from self._session.get(url, **kw)
-        self._raise_for_status(response)
+        yield from self._raise_for_status(response)
         return response
 
     @asyncio.coroutine
@@ -75,7 +76,7 @@ class XboxLiveClient(object):
         kw['headers'] = headers
         kw['data'] = data
         response = yield from self._post(url, **kw)
-        self._raise_for_status(response)
+        yield from self._raise_for_status(response)
         return response
 
     @asyncio.coroutine
@@ -88,7 +89,7 @@ class XboxLiveClient(object):
         headers.setdefault('Authorization', self.AUTHORIZATION_HEADER)
         kw['headers'] = headers
         response = yield from self._session.post(url, **kw)
-        self._raise_for_status(response)
+        yield from self._raise_for_status(response)
         return response
 
     @asyncio.coroutine
