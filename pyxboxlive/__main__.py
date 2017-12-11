@@ -100,9 +100,9 @@ def main():
     obj = {}
     try:
         cli(obj=obj)
-        print("FFF")
     finally:
-        obj['client'].close()
+        if obj.get('client'):
+            obj['client'].close()
 
 
 if __name__ == '__main__':
